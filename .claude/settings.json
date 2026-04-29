@@ -1,0 +1,83 @@
+{
+  "project": {
+    "name": "Advanced RAG Chatbot",
+    "description": "Production-ready RAG system with semantic routing and multi-intent handling",
+    "version": "1.0.0",
+    "type": "python-backend"
+  },
+  "models": {
+    "primary": "claude-sonnet-4-20250514",
+    "temperature": 0.3,
+    "max_tokens": 4096
+  },
+  "permissions": {
+    "file_access": {
+      "read": ["**/*.py", "**/*.md", "**/*.json", "**/*.yml", "**/*.txt", "**/*.sh"],
+      "write": ["src/**/*.py", "app/**/*.py", "scripts/**/*.py", "tests/**/*.py", "*.md"],
+      "forbidden": [".env", ".env.local", "data/vectordb/**", "logs/**"]
+    },
+    "commands": {
+      "allowed": [
+        "python",
+        "pytest",
+        "pip",
+        "uvicorn",
+        "docker",
+        "docker-compose",
+        "curl",
+        "git",
+        "gh"
+      ],
+      "forbidden": ["rm -rf", "dd", "mkfs", "> /dev/"]
+    },
+    "network": {
+      "allowed_domains": [
+        "api.anthropic.com",
+        "api.stackexchange.com",
+        "stackoverflow.com",
+        "pypi.org",
+        "api.github.com",
+        "github.com"
+      ]
+    }
+  },
+  "tools": {
+    "linter": "ruff",
+    "formatter": "black",
+    "type_checker": "mypy",
+    "test_framework": "pytest"
+  },
+  "mcp": {
+    "servers": {
+      "github": {
+        "enabled": true,
+        "auth_required": true,
+        "permissions": {
+          "repos": ["read", "write", "admin"],
+          "issues": ["read", "write"],
+          "pull_requests": ["read", "write"],
+          "workflows": ["read"],
+          "contents": ["read", "write"],
+          "actions": ["read"]
+        }
+      }
+    }
+  },
+  "hooks": {
+    "pre_commit": [".claude/hooks/validate-bash.sh"],
+    "post_file_change": []
+  },
+  "context": {
+    "always_include": [
+      "CLAUDE.md",
+      "app/config.py",
+      "app/models.py"
+    ],
+    "auto_load_skills": true
+  },
+  "rules": {
+    "code_style": ".claude/rules/code-style.md",
+    "testing": ".claude/rules/testing.md",
+    "api_conventions": ".claude/rules/api-conventions.md"
+  }
+}

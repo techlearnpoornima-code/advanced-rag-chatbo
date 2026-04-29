@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  rag-chatbot:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: advanced-rag-chatbot
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - EMBEDDING_MODEL=all-MiniLM-L6-v2
+      - LLM_MODEL=claude-sonnet-4-20250514
+      - LOG_LEVEL=INFO
+      - ENABLE_HYBRID_SEARCH=true
+      - ENABLE_MULTI_INTENT=true
+    volumes:
+      - rag-data:/app/data
+      - rag-logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  rag-data:
+    driver: local
+  rag-logs:
+    driver: local

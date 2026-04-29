@@ -1,0 +1,28 @@
+{
+  "name": "advanced-rag-chatbot",
+  "version": "1.0.0",
+  "integrations": {
+    "github": {
+      "enabled": false,
+      "repository": "",
+      "auto_commit": false
+    },
+    "slack": {
+      "enabled": false,
+      "webhook_url": "",
+      "notify_on": ["deployment", "errors"]
+    },
+    "databases": {
+      "chromadb": {
+        "enabled": true,
+        "path": "./data/vectordb",
+        "collection": "stackoverflow_qa"
+      }
+    }
+  },
+  "shared_team_context": {
+    "coding_standards": "Follow PEP 8, use type hints, async/await for I/O",
+    "deployment_process": "See DEPLOYMENT.md",
+    "testing_requirements": "All new features require tests"
+  }
+}
