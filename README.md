@@ -37,11 +37,11 @@ See [CLAPNQ_DATASET_ANALYSIS.md](docs/CLAPNQ_DATASET_ANALYSIS.md) for full analy
 User Query
     ↓
 Retrieval Module
-├─ Dense Search (Embeddings)
+├─ Dense Search (Embeddings + FAISS)
 ├─ Sparse Search (BM25)
 └─ Cross-Encoder Reranking
     ↓
-Vector Store (ChromaDB)
+Vector Store (FAISS + SQLite Metadata)
     ↓
 Retrieved Passages
     ↓
@@ -179,7 +179,8 @@ preserve_boundaries: True
 
 - **Python** 3.11+
 - **FastAPI** - Web framework
-- **ChromaDB** - Vector storage
+- **FAISS** - Vector indexing & similarity search
+- **SQLite** - Metadata storage
 - **SentenceTransformers** - Embeddings
 - **Claude (Anthropic)** - LLM
 - **Pytest** - Testing
