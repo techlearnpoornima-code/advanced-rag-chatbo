@@ -283,6 +283,10 @@ async def main():
     logger.info(f"Loaded {len(answerable_data)} answerable queries")
     logger.info(f"Loaded {len(unanswerable_data)} unanswerable queries")
 
+    # similarity_threshold: Balance between precision and recall
+    # - 0.5: Perfect recall (find all answers), moderate precision
+    # - 0.75: Higher precision, may miss some relevant chunks
+    # For RAG, missing information is worse than extra retrieval
     answerable_results = await evaluate_answerable_queries(
         vector_store,
         answerable_data,
