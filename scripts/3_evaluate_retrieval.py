@@ -1,25 +1,35 @@
-"""Evaluate retrieval metrics on CLAPnq dataset samples."""
+"""Phase 1.3 - Evaluate Retrieval Quality (uses FAISS from Phase 1.2)
+
+This script:
+1. Loads pre-built FAISS index + SQLite from Phase 1.2
+2. Loads CLAPnq evaluation queries (10 answerable + 10 unanswerable)
+3. Runs semantic search against the index
+4. Evaluates retrieval quality using metrics (MRR, NDCG, Precision, Recall, F1)
+5. Stores results in data/evaluation_results_faiss.json
+
+NO chunking/embedding generation - reuses Phase 1.2 output!
+"""
 
 import json
 import sys
 import asyncio
 from pathlib import Path
 from typing import List, Dict, Any
-import random
 
 from loguru import logger
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.evaluation.metrics import DatasetMetrics, QueryMetrics
+from src.evaluation.metrics import DatasetMetrics
 from src.data_loading.clapnq_loader import CLAPnqLoader
+from src.retrieval.vector_store_faiss import VectorStoreFaiss
 
 
-async def load_sample_data(
+async def load_evaluation_data(
     answerable_limit: int = 10,
     unanswerable_limit: int = 10,
 ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """Load sample CLAPnq data for evaluation."""
+    """Load CLAPnq evaluation queries."""
     loader = CLAPnqLoader()
 
     answerable_data = await loader.load_answerable(
@@ -34,124 +44,119 @@ async def load_sample_data(
     return answerable_data, unanswerable_data
 
 
-def create_mock_retrieval_results(
-    passages: List[Dict[str, Any]],
-    num_relevant: int = 2,
-    num_total: int = 10,
-) -> tuple[List[Dict[str, Any]], List[str]]:
-    """
-    Create mock retrieval results for evaluation.
+def extract_relevant_chunks(record: Dict[str, Any]) -> List[str]:
+    """Extract relevant chunk IDs from answer information."""
+    relevant_chunks = []
 
-    Simulates FAISS retrieval with scores.
-    """
-    all_chunks = []
-    for i, passage in enumerate(passages):
-        sentences = passage.get("sentences", [passage.get("text", "")])
-        for j, sentence in enumerate(sentences):
-            chunk_id = f"passage_{i}_chunk_{j}"
-            all_chunks.append({
-                "chunk_id": chunk_id,
-                "content": sentence,
-                "passage_idx": i,
-                "sentence_idx": j,
-            })
+    output = record.get("output", [{}])[0]
+    answer = output.get("answer", "")
 
-    if len(all_chunks) < num_total:
-        logger.warning(
-            f"Only {len(all_chunks)} chunks available, requested {num_total}"
-        )
-        num_total = len(all_chunks)
+    if not answer:
+        return relevant_chunks
 
-    retrieved = random.sample(all_chunks, k=num_total)
+    selected_sentences = output.get("selected_sentences", [])
 
-    for i, chunk in enumerate(retrieved):
-        score = 0.95 - (i * 0.08) + random.uniform(-0.05, 0.05)
-        score = max(0.0, min(1.0, score))
-        chunk["score"] = score
+    for sent_idx in selected_sentences:
+        try:
+            sent_idx = int(sent_idx)
+            chunk_id = f"p0_c{sent_idx}"
+            relevant_chunks.append(chunk_id)
+        except (ValueError, TypeError):
+            continue
 
-    sorted_chunks = sorted(retrieved, key=lambda x: x["score"], reverse=True)
-
-    relevant_ids = set()
-    if num_relevant > 0:
-        relevant_indices = random.sample(
-            range(min(num_relevant + 2, len(sorted_chunks))),
-            k=min(num_relevant, len(sorted_chunks))
-        )
-        for idx in relevant_indices[:num_relevant]:
-            relevant_ids.add(sorted_chunks[idx]["chunk_id"])
-
-    return sorted_chunks, list(relevant_ids)
+    return relevant_chunks
 
 
-def evaluate_answerable_queries(
-    data: List[Dict[str, Any]],
+async def evaluate_answerable_queries(
+    vector_store: VectorStoreFaiss,
+    records: List[Dict[str, Any]],
     k: int = 5,
 ) -> Dict[str, Any]:
-    """Evaluate retrieval metrics for answerable questions."""
-    logger.info(f"Evaluating {len(data)} answerable queries (K={k})...")
+    """Evaluate retrieval on answerable questions."""
+    logger.info(f"Evaluating {len(records)} answerable queries (K={k})...")
 
     dataset_metrics = DatasetMetrics(k=k)
     queries = []
 
-    for record in data:
-        query_id = record.get("id", "unknown")
-        passages = record.get("passages", [])
+    for record in records:
+        query = record.get("input", "")
+        record_id = record.get("id", "unknown")
 
-        retrieved_chunks, relevant_ids = create_mock_retrieval_results(
-            passages,
-            num_relevant=1,
-            num_total=k
-        )
+        if not query:
+            continue
+
+        retrieved_chunks = await vector_store.search(query, top_k=k)
+        relevant_chunk_ids = extract_relevant_chunks(record)
 
         queries.append({
-            "query_id": query_id,
+            "query_id": record_id,
+            "query_text": query,
             "retrieved_chunks": retrieved_chunks,
-            "relevant_chunk_ids": relevant_ids,
+            "relevant_chunk_ids": relevant_chunk_ids,
         })
+
+    if not queries:
+        logger.warning("No valid queries for answerable evaluation")
+        return {
+            "dataset_type": "answerable",
+            "num_queries": 0,
+            "aggregated_metrics": {},
+            "individual_results": [],
+        }
 
     aggregated = dataset_metrics.evaluate_batch(queries)
     individual_results = dataset_metrics.get_results()
 
     return {
         "dataset_type": "answerable",
-        "num_queries": len(data),
+        "num_queries": len(queries),
         "aggregated_metrics": aggregated,
         "individual_results": individual_results,
     }
 
 
-def evaluate_unanswerable_queries(
-    data: List[Dict[str, Any]],
+async def evaluate_unanswerable_queries(
+    vector_store: VectorStoreFaiss,
+    records: List[Dict[str, Any]],
     k: int = 5,
 ) -> Dict[str, Any]:
-    """Evaluate retrieval metrics for unanswerable questions."""
-    logger.info(f"Evaluating {len(data)} unanswerable queries (K={k})...")
+    """Evaluate retrieval on unanswerable questions."""
+    logger.info(f"Evaluating {len(records)} unanswerable queries (K={k})...")
 
     dataset_metrics = DatasetMetrics(k=k)
     queries = []
 
-    for record in data:
-        query_id = record.get("id", "unknown")
-        passages = record.get("passages", [])
+    for record in records:
+        query = record.get("input", "")
+        record_id = record.get("id", "unknown")
 
-        retrieved_chunks, relevant_ids = create_mock_retrieval_results(
-            passages,
-            num_relevant=0,
-            num_total=k
-        )
+        if not query:
+            continue
+
+        retrieved_chunks = await vector_store.search(query, top_k=k)
 
         queries.append({
-            "query_id": query_id,
+            "query_id": record_id,
+            "query_text": query,
             "retrieved_chunks": retrieved_chunks,
-            "relevant_chunk_ids": relevant_ids,
+            "relevant_chunk_ids": [],
         })
+
+    if not queries:
+        logger.warning("No valid queries for unanswerable evaluation")
+        return {
+            "dataset_type": "unanswerable",
+            "num_queries": 0,
+            "aggregated_metrics": {},
+            "individual_results": [],
+        }
 
     aggregated = dataset_metrics.evaluate_batch(queries)
     individual_results = dataset_metrics.get_results()
 
     return {
         "dataset_type": "unanswerable",
-        "num_queries": len(data),
+        "num_queries": len(queries),
         "aggregated_metrics": aggregated,
         "individual_results": individual_results,
     }
@@ -160,13 +165,14 @@ def evaluate_unanswerable_queries(
 def save_results(
     answerable_results: Dict[str, Any],
     unanswerable_results: Dict[str, Any],
-    output_path: str = "data/evaluation_results.json",
-    k: int = 5,
+    output_path: str = "data/evaluation_results_faiss.json",
 ) -> None:
     """Save evaluation results to JSON file."""
     results = {
+        "evaluation_type": "FAISS-based (Phase 1.2 index)",
         "evaluation_config": {
-            "k": k,
+            "k": 5,
+            "embedding_model": "all-MiniLM-L6-v2",
             "answerable_queries": answerable_results["num_queries"],
             "unanswerable_queries": unanswerable_results["num_queries"],
         },
@@ -189,39 +195,52 @@ def print_results(
 ) -> None:
     """Print evaluation results."""
     print("\n" + "=" * 80)
-    print("RETRIEVAL EVALUATION RESULTS")
+    print("FAISS-BASED RETRIEVAL EVALUATION RESULTS (Phase 1.3)")
     print("=" * 80)
 
     print("\n📊 ANSWERABLE QUERIES")
     print("-" * 80)
-    print(f"Total Queries: {answerable_results['num_queries']}")
-    agg = answerable_results["aggregated_metrics"]
-    print(f"MRR:       {agg['mrr_mean']:.4f} (±{agg['mrr_std']:.4f})")
-    print(f"NDCG:      {agg['ndcg_mean']:.4f} (±{agg['ndcg_std']:.4f})")
-    print(f"Precision: {agg['precision_mean']:.4f} (±{agg['precision_std']:.4f})")
-    print(f"Recall:    {agg['recall_mean']:.4f} (±{agg['recall_std']:.4f})")
-    print(f"F1 Score:  {agg['f1_mean']:.4f} (±{agg['f1_std']:.4f})")
-    print(f"AP:        {agg['ap_mean']:.4f} (±{agg['ap_std']:.4f})")
+    if answerable_results["num_queries"] == 0:
+        print("No queries evaluated")
+    else:
+        print(f"Total Queries: {answerable_results['num_queries']}")
+        agg = answerable_results["aggregated_metrics"]
+        print(f"MRR:       {agg.get('mrr_mean', 0):.4f} (±{agg.get('mrr_std', 0):.4f})")
+        print(f"NDCG:      {agg.get('ndcg_mean', 0):.4f} (±{agg.get('ndcg_std', 0):.4f})")
+        print(f"Precision: {agg.get('precision_mean', 0):.4f} (±{agg.get('precision_std', 0):.4f})")
+        print(f"Recall:    {agg.get('recall_mean', 0):.4f} (±{agg.get('recall_std', 0):.4f})")
+        print(f"F1 Score:  {agg.get('f1_mean', 0):.4f} (±{agg.get('f1_std', 0):.4f})")
+        print(f"AP:        {agg.get('ap_mean', 0):.4f} (±{agg.get('ap_std', 0):.4f})")
 
     print("\n📊 UNANSWERABLE QUERIES")
     print("-" * 80)
-    print(f"Total Queries: {unanswerable_results['num_queries']}")
-    agg = unanswerable_results["aggregated_metrics"]
-    print(f"MRR:       {agg['mrr_mean']:.4f} (±{agg['mrr_std']:.4f})")
-    print(f"NDCG:      {agg['ndcg_mean']:.4f} (±{agg['ndcg_std']:.4f})")
-    print(f"Precision: {agg['precision_mean']:.4f} (±{agg['precision_std']:.4f})")
-    print(f"Recall:    {agg['recall_mean']:.4f} (±{agg['recall_std']:.4f})")
-    print(f"F1 Score:  {agg['f1_mean']:.4f} (±{agg['f1_std']:.4f})")
-    print(f"AP:        {agg['ap_mean']:.4f} (±{agg['ap_std']:.4f})")
+    if unanswerable_results["num_queries"] == 0:
+        print("No queries evaluated")
+    else:
+        print(f"Total Queries: {unanswerable_results['num_queries']}")
+        agg = unanswerable_results["aggregated_metrics"]
+        print(f"MRR:       {agg.get('mrr_mean', 0):.4f} (±{agg.get('mrr_std', 0):.4f})")
+        print(f"NDCG:      {agg.get('ndcg_mean', 0):.4f} (±{agg.get('ndcg_std', 0):.4f})")
+        print(f"Precision: {agg.get('precision_mean', 0):.4f} (±{agg.get('precision_std', 0):.4f})")
+        print(f"Recall:    {agg.get('recall_mean', 0):.4f} (±{agg.get('recall_std', 0):.4f})")
+        print(f"F1 Score:  {agg.get('f1_mean', 0):.4f} (±{agg.get('f1_std', 0):.4f})")
+        print(f"AP:        {agg.get('ap_mean', 0):.4f} (±{agg.get('ap_std', 0):.4f})")
 
     print("\n" + "=" * 80)
 
 
 async def main():
     """Main evaluation pipeline."""
-    logger.info("Starting retrieval evaluation...")
+    logger.info("Starting Phase 1.3 - Retrieval Evaluation...")
 
-    answerable_data, unanswerable_data = await load_sample_data(
+    vector_store = VectorStoreFaiss()
+
+    if not vector_store.index_path.exists():
+        logger.error(f"FAISS index not found at {vector_store.index_path}")
+        logger.error("Run Phase 1.2 (script 2) first to build the index")
+        return
+
+    answerable_data, unanswerable_data = await load_evaluation_data(
         answerable_limit=10,
         unanswerable_limit=10
     )
@@ -229,14 +248,21 @@ async def main():
     logger.info(f"Loaded {len(answerable_data)} answerable queries")
     logger.info(f"Loaded {len(unanswerable_data)} unanswerable queries")
 
-    k_value = 5
-    answerable_results = evaluate_answerable_queries(answerable_data, k=k_value)
-    unanswerable_results = evaluate_unanswerable_queries(unanswerable_data, k=k_value)
+    answerable_results = await evaluate_answerable_queries(
+        vector_store,
+        answerable_data,
+        k=5
+    )
+    unanswerable_results = await evaluate_unanswerable_queries(
+        vector_store,
+        unanswerable_data,
+        k=5
+    )
 
-    save_results(answerable_results, unanswerable_results, k=k_value)
+    save_results(answerable_results, unanswerable_results)
     print_results(answerable_results, unanswerable_results)
 
-    logger.info("Evaluation complete!")
+    logger.info("Phase 1.3 complete!")
 
 
 if __name__ == "__main__":
