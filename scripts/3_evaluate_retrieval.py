@@ -16,6 +16,7 @@ import asyncio
 from pathlib import Path
 from typing import List, Dict, Any
 
+import numpy as np
 from loguru import logger
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -23,6 +24,21 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.evaluation.metrics import DatasetMetrics
 from src.data_loading.clapnq_loader import CLAPnqLoader
 from src.retrieval.vector_store_faiss import VectorStoreFaiss
+
+
+def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
+    """Compute cosine similarity between two vectors."""
+    v1 = np.array(vec1, dtype=np.float32)
+    v2 = np.array(vec2, dtype=np.float32)
+
+    dot_product = np.dot(v1, v2)
+    norm_v1 = np.linalg.norm(v1)
+    norm_v2 = np.linalg.norm(v2)
+
+    if norm_v1 == 0 or norm_v2 == 0:
+        return 0.0
+
+    return float(dot_product / (norm_v1 * norm_v2))
 
 
 async def load_evaluation_data(
@@ -44,36 +60,21 @@ async def load_evaluation_data(
     return answerable_data, unanswerable_data
 
 
-def extract_relevant_chunks(record: Dict[str, Any]) -> List[str]:
-    """Extract relevant chunk IDs from answer information."""
-    relevant_chunks = []
-
+def extract_answer_text(record: Dict[str, Any]) -> str:
+    """Extract answer text from record for semantic comparison."""
     output = record.get("output", [{}])[0]
     answer = output.get("answer", "")
-
-    if not answer:
-        return relevant_chunks
-
-    selected_sentences = output.get("selected_sentences", [])
-
-    for sent_idx in selected_sentences:
-        try:
-            sent_idx = int(sent_idx)
-            chunk_id = f"p0_c{sent_idx}"
-            relevant_chunks.append(chunk_id)
-        except (ValueError, TypeError):
-            continue
-
-    return relevant_chunks
+    return answer
 
 
 async def evaluate_answerable_queries(
     vector_store: VectorStoreFaiss,
     records: List[Dict[str, Any]],
     k: int = 5,
+    similarity_threshold: float = 0.5,
 ) -> Dict[str, Any]:
-    """Evaluate retrieval on answerable questions."""
-    logger.info(f"Evaluating {len(records)} answerable queries (K={k})...")
+    """Evaluate retrieval on answerable questions using semantic comparison."""
+    logger.info(f"Evaluating {len(records)} answerable queries (K={k}, threshold={similarity_threshold})...")
 
     dataset_metrics = DatasetMetrics(k=k)
     queries = []
@@ -81,12 +82,36 @@ async def evaluate_answerable_queries(
     for record in records:
         query = record.get("input", "")
         record_id = record.get("id", "unknown")
+        answer_text = extract_answer_text(record)
 
-        if not query:
+        if not query or not answer_text:
             continue
 
-        retrieved_chunks = await vector_store.search(query, top_k=k)
-        relevant_chunk_ids = extract_relevant_chunks(record)
+        # Get answer embedding for semantic comparison
+        answer_embedding = vector_store.embed_text(answer_text)
+
+        # Retrieve chunks with embeddings
+        retrieved_chunks_with_embeddings = await vector_store.search_with_embeddings(query, top_k=k)
+
+        # Convert to format expected by metrics: compute semantic relevance
+        retrieved_chunks = []
+        for chunk in retrieved_chunks_with_embeddings:
+            # Compute cosine similarity between answer and chunk embedding
+            similarity = cosine_similarity(answer_embedding, chunk["embedding"])
+
+            retrieved_chunks.append({
+                "chunk_id": chunk["chunk_id"],
+                "score": similarity,
+                "text": chunk["chunk_text"],
+                "passage_title": chunk["passage_title"],
+            })
+
+        # For semantic comparison, create binary relevance:
+        # A chunk is "relevant" if its embedding has high similarity to the answer
+        relevant_chunk_ids = [
+            chunk["chunk_id"] for chunk in retrieved_chunks
+            if chunk["score"] > similarity_threshold
+        ]
 
         queries.append({
             "query_id": record_id,
@@ -133,13 +158,23 @@ async def evaluate_unanswerable_queries(
         if not query:
             continue
 
-        retrieved_chunks = await vector_store.search(query, top_k=k)
+        retrieved_chunks_with_embeddings = await vector_store.search_with_embeddings(query, top_k=k)
+
+        # Convert to standard format
+        retrieved_chunks = []
+        for chunk in retrieved_chunks_with_embeddings:
+            retrieved_chunks.append({
+                "chunk_id": chunk["chunk_id"],
+                "score": 0.0,  # No relevance for unanswerable
+                "text": chunk["chunk_text"],
+                "passage_title": chunk["passage_title"],
+            })
 
         queries.append({
             "query_id": record_id,
             "query_text": query,
             "retrieved_chunks": retrieved_chunks,
-            "relevant_chunk_ids": [],
+            "relevant_chunk_ids": [],  # No relevant chunks for unanswerable
         })
 
     if not queries:
@@ -231,7 +266,7 @@ def print_results(
 
 async def main():
     """Main evaluation pipeline."""
-    logger.info("Starting Phase 1.3 - Retrieval Evaluation...")
+    logger.info("Starting Phase 1.3 - Retrieval Evaluation (Semantic Comparison)...")
 
     vector_store = VectorStoreFaiss()
 
@@ -251,7 +286,8 @@ async def main():
     answerable_results = await evaluate_answerable_queries(
         vector_store,
         answerable_data,
-        k=5
+        k=5,
+        similarity_threshold=0.5
     )
     unanswerable_results = await evaluate_unanswerable_queries(
         vector_store,

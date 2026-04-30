@@ -254,6 +254,74 @@ class VectorStoreFaiss:
             logger.error(f"Search error: {e}")
             return []
 
+    async def search_with_embeddings(
+        self,
+        query: str,
+        top_k: int = 10,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for relevant chunks and return their embeddings.
+
+        Args:
+            query: Search query text
+            top_k: Number of results to return
+            filters: Metadata filters
+
+        Returns:
+            List of chunk results with metadata and embeddings
+        """
+        try:
+            # 1. Embed query
+            query_embedding = self.embedding_model.encode(query).astype('float32')
+            query_embedding = np.array([query_embedding])
+
+            # 2. Search FAISS index
+            distances, indices = self.index.search(query_embedding, k=min(top_k * 2, self.chunk_count))
+
+            # 3. Fetch metadata and embeddings
+            results = []
+            for idx in indices[0]:
+                if idx < 0:
+                    continue
+
+                metadata = self._get_metadata_by_index(idx)
+                if metadata is None:
+                    continue
+
+                # Apply filters
+                if filters and not self._matches_filters(metadata, filters):
+                    continue
+
+                # Get embedding from FAISS index
+                embedding = self.index.reconstruct(int(idx)).tolist()
+
+                results.append({
+                    **metadata,
+                    "embedding": embedding,
+                    "faiss_index": int(idx)
+                })
+
+            logger.info(f"Retrieved {len(results)} chunks for query: {query[:50]}...")
+            return results[:top_k]
+
+        except Exception as e:
+            logger.error(f"Search error: {e}")
+            return []
+
+    def embed_text(self, text: str) -> List[float]:
+        """
+        Generate embedding for text.
+
+        Args:
+            text: Text to embed
+
+        Returns:
+            Embedding vector
+        """
+        embedding = self.embedding_model.encode(text).astype('float32')
+        return embedding.tolist()
+
     def _get_metadata_by_index(self, idx: int) -> Optional[Dict[str, Any]]:
         """Get metadata for chunk by FAISS index."""
         try:
