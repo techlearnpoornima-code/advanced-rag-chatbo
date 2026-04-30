@@ -1,6 +1,6 @@
 {
   "evaluation_config": {
-    "k": 10,
+    "k": 5,
     "answerable_queries": 10,
     "unanswerable_queries": 10
   },
@@ -8,15 +8,15 @@
     "dataset_type": "answerable",
     "num_queries": 10,
     "aggregated_metrics": {
-      "mrr_mean": 0.5666666666666667,
-      "mrr_std": 0.18929694486000914,
-      "mrr_median": 0.6458333333333333,
-      "mrr_min": 0.29166666666666663,
-      "mrr_max": 0.75,
-      "ndcg_mean": 0.8282566875821281,
-      "ndcg_std": 0.17638135137506425,
-      "ndcg_median": 0.8984680522431184,
-      "ndcg_min": 0.5706417189553201,
+      "mrr_mean": 0.7833333333333333,
+      "mrr_std": 0.26925824035672524,
+      "mrr_median": 1.0,
+      "mrr_min": 0.3333333333333333,
+      "mrr_max": 1.0,
+      "ndcg_mean": 0.8392789260714373,
+      "ndcg_std": 0.2000814594981179,
+      "ndcg_median": 1.0,
+      "ndcg_min": 0.5,
       "ndcg_max": 1.0,
       "precision_mean": 0.2,
       "precision_std": 0.0,
@@ -33,124 +33,124 @@
       "f1_median": 0.33333333333333337,
       "f1_min": 0.33333333333333337,
       "f1_max": 0.33333333333333337,
-      "ap_mean": 0.75,
-      "ap_std": 0.2386303510546059,
-      "ap_median": 0.7916666666666666,
-      "ap_min": 0.41666666666666663,
+      "ap_mean": 0.7833333333333333,
+      "ap_std": 0.26925824035672524,
+      "ap_median": 1.0,
+      "ap_min": 0.3333333333333333,
       "ap_max": 1.0,
       "num_queries": 10,
-      "total_relevant": 20
+      "total_relevant": 10
     },
     "individual_results": [
       {
         "query_id": "8045984229282682032",
-        "mrr": 0.75,
-        "ndcg": 1.0,
-        "precision": 0.2,
-        "recall": 1.0,
-        "f1": 0.33333333333333337,
-        "ap": 1.0,
-        "num_relevant": 2,
-        "num_retrieved_relevant": 2
-      },
-      {
-        "query_id": "8116539286638468011",
-        "mrr": 0.6666666666666666,
-        "ndcg": 0.9197207891481876,
-        "precision": 0.2,
-        "recall": 1.0,
-        "f1": 0.33333333333333337,
-        "ap": 0.8333333333333333,
-        "num_relevant": 2,
-        "num_retrieved_relevant": 2
-      },
-      {
-        "query_id": "-3228156810154352180",
-        "mrr": 0.375,
-        "ndcg": 0.6509209298071326,
+        "mrr": 0.5,
+        "ndcg": 0.6309297535714575,
         "precision": 0.2,
         "recall": 1.0,
         "f1": 0.33333333333333337,
         "ap": 0.5,
-        "num_relevant": 2,
-        "num_retrieved_relevant": 2
+        "num_relevant": 1,
+        "num_retrieved_relevant": 1
+      },
+      {
+        "query_id": "8116539286638468011",
+        "mrr": 0.3333333333333333,
+        "ndcg": 0.5,
+        "precision": 0.2,
+        "recall": 1.0,
+        "f1": 0.33333333333333337,
+        "ap": 0.3333333333333333,
+        "num_relevant": 1,
+        "num_retrieved_relevant": 1
+      },
+      {
+        "query_id": "-3228156810154352180",
+        "mrr": 1.0,
+        "ndcg": 1.0,
+        "precision": 0.2,
+        "recall": 1.0,
+        "f1": 0.33333333333333337,
+        "ap": 1.0,
+        "num_relevant": 1,
+        "num_retrieved_relevant": 1
       },
       {
         "query_id": "3987125231951435424",
-        "mrr": 0.75,
-        "ndcg": 1.0,
+        "mrr": 0.5,
+        "ndcg": 0.6309297535714575,
         "precision": 0.2,
         "recall": 1.0,
         "f1": 0.33333333333333337,
-        "ap": 1.0,
-        "num_relevant": 2,
-        "num_retrieved_relevant": 2
+        "ap": 0.5,
+        "num_relevant": 1,
+        "num_retrieved_relevant": 1
       },
       {
         "query_id": "4033741599548472305",
-        "mrr": 0.75,
+        "mrr": 1.0,
         "ndcg": 1.0,
         "precision": 0.2,
         "recall": 1.0,
         "f1": 0.33333333333333337,
         "ap": 1.0,
-        "num_relevant": 2,
-        "num_retrieved_relevant": 2
+        "num_relevant": 1,
+        "num_retrieved_relevant": 1
       },
       {
         "query_id": "1418137193354531640",
-        "mrr": 0.29166666666666663,
-        "ndcg": 0.5706417189553201,
-        "precision": 0.2,
-        "recall": 1.0,
-        "f1": 0.33333333333333337,
-        "ap": 0.41666666666666663,
-        "num_relevant": 2,
-        "num_retrieved_relevant": 2
-      },
-      {
-        "query_id": "3357197785218509494",
-        "mrr": 0.29166666666666663,
-        "ndcg": 0.5706417189553201,
-        "precision": 0.2,
-        "recall": 1.0,
-        "f1": 0.33333333333333337,
-        "ap": 0.41666666666666663,
-        "num_relevant": 2,
-        "num_retrieved_relevant": 2
-      },
-      {
-        "query_id": "-6535437352408475447",
-        "mrr": 0.41666666666666663,
-        "ndcg": 0.6934264036172708,
-        "precision": 0.2,
-        "recall": 1.0,
-        "f1": 0.33333333333333337,
-        "ap": 0.5833333333333333,
-        "num_relevant": 2,
-        "num_retrieved_relevant": 2
-      },
-      {
-        "query_id": "-7004734840398964545",
-        "mrr": 0.625,
-        "ndcg": 0.8772153153380493,
-        "precision": 0.2,
-        "recall": 1.0,
-        "f1": 0.33333333333333337,
-        "ap": 0.75,
-        "num_relevant": 2,
-        "num_retrieved_relevant": 2
-      },
-      {
-        "query_id": "7704053979528747207",
-        "mrr": 0.75,
+        "mrr": 1.0,
         "ndcg": 1.0,
         "precision": 0.2,
         "recall": 1.0,
         "f1": 0.33333333333333337,
         "ap": 1.0,
-        "num_relevant": 2,
-        "num_retrieved_relevant": 2
+        "num_relevant": 1,
+        "num_retrieved_relevant": 1
+      },
+      {
+        "query_id": "3357197785218509494",
+        "mrr": 1.0,
+        "ndcg": 1.0,
+        "precision": 0.2,
+        "recall": 1.0,
+        "f1": 0.33333333333333337,
+        "ap": 1.0,
+        "num_relevant": 1,
+        "num_retrieved_relevant": 1
+      },
+      {
+        "query_id": "-6535437352408475447",
+        "mrr": 1.0,
+        "ndcg": 1.0,
+        "precision": 0.2,
+        "recall": 1.0,
+        "f1": 0.33333333333333337,
+        "ap": 1.0,
+        "num_relevant": 1,
+        "num_retrieved_relevant": 1
+      },
+      {
+        "query_id": "-7004734840398964545",
+        "mrr": 1.0,
+        "ndcg": 1.0,
+        "precision": 0.2,
+        "recall": 1.0,
+        "f1": 0.33333333333333337,
+        "ap": 1.0,
+        "num_relevant": 1,
+        "num_retrieved_relevant": 1
+      },
+      {
+        "query_id": "7704053979528747207",
+        "mrr": 0.5,
+        "ndcg": 0.6309297535714575,
+        "precision": 0.2,
+        "recall": 1.0,
+        "f1": 0.33333333333333337,
+        "ap": 0.5,
+        "num_relevant": 1,
+        "num_retrieved_relevant": 1
       }
     ]
   },
@@ -158,11 +158,11 @@
     "dataset_type": "unanswerable",
     "num_queries": 10,
     "aggregated_metrics": {
-      "mrr_mean": 0.09090909090909091,
-      "mrr_std": 0.0,
-      "mrr_median": 0.09090909090909091,
-      "mrr_min": 0.09090909090909091,
-      "mrr_max": 0.09090909090909091,
+      "mrr_mean": 0.16666666666666669,
+      "mrr_std": 2.7755575615628914e-17,
+      "mrr_median": 0.16666666666666666,
+      "mrr_min": 0.16666666666666666,
+      "mrr_max": 0.16666666666666666,
       "ndcg_mean": 0.0,
       "ndcg_std": 0.0,
       "ndcg_median": 0.0,
@@ -194,7 +194,7 @@
     "individual_results": [
       {
         "query_id": "-8741190354190322635",
-        "mrr": 0.09090909090909091,
+        "mrr": 0.16666666666666666,
         "ndcg": 0.0,
         "precision": 0.0,
         "recall": 0.0,
@@ -205,7 +205,7 @@
       },
       {
         "query_id": "-5975840199081721858",
-        "mrr": 0.09090909090909091,
+        "mrr": 0.16666666666666666,
         "ndcg": 0.0,
         "precision": 0.0,
         "recall": 0.0,
@@ -216,7 +216,7 @@
       },
       {
         "query_id": "-2092719796574890322",
-        "mrr": 0.09090909090909091,
+        "mrr": 0.16666666666666666,
         "ndcg": 0.0,
         "precision": 0.0,
         "recall": 0.0,
@@ -227,7 +227,7 @@
       },
       {
         "query_id": "-8157576354703508221",
-        "mrr": 0.09090909090909091,
+        "mrr": 0.16666666666666666,
         "ndcg": 0.0,
         "precision": 0.0,
         "recall": 0.0,
@@ -238,7 +238,7 @@
       },
       {
         "query_id": "-2662798521020328829",
-        "mrr": 0.09090909090909091,
+        "mrr": 0.16666666666666666,
         "ndcg": 0.0,
         "precision": 0.0,
         "recall": 0.0,
@@ -249,7 +249,7 @@
       },
       {
         "query_id": "5336442305225205635",
-        "mrr": 0.09090909090909091,
+        "mrr": 0.16666666666666666,
         "ndcg": 0.0,
         "precision": 0.0,
         "recall": 0.0,
@@ -260,7 +260,7 @@
       },
       {
         "query_id": "7234795036285514967",
-        "mrr": 0.09090909090909091,
+        "mrr": 0.16666666666666666,
         "ndcg": 0.0,
         "precision": 0.0,
         "recall": 0.0,
@@ -271,7 +271,7 @@
       },
       {
         "query_id": "-3879862814299373266",
-        "mrr": 0.09090909090909091,
+        "mrr": 0.16666666666666666,
         "ndcg": 0.0,
         "precision": 0.0,
         "recall": 0.0,
@@ -282,7 +282,7 @@
       },
       {
         "query_id": "916855638952437174",
-        "mrr": 0.09090909090909091,
+        "mrr": 0.16666666666666666,
         "ndcg": 0.0,
         "precision": 0.0,
         "recall": 0.0,
@@ -293,7 +293,7 @@
       },
       {
         "query_id": "176015247081381216",
-        "mrr": 0.09090909090909091,
+        "mrr": 0.16666666666666666,
         "ndcg": 0.0,
         "precision": 0.0,
         "recall": 0.0,

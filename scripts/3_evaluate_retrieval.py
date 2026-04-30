@@ -85,11 +85,12 @@ def create_mock_retrieval_results(
 
 def evaluate_answerable_queries(
     data: List[Dict[str, Any]],
+    k: int = 5,
 ) -> Dict[str, Any]:
     """Evaluate retrieval metrics for answerable questions."""
-    logger.info(f"Evaluating {len(data)} answerable queries...")
+    logger.info(f"Evaluating {len(data)} answerable queries (K={k})...")
 
-    dataset_metrics = DatasetMetrics(k=10)
+    dataset_metrics = DatasetMetrics(k=k)
     queries = []
 
     for record in data:
@@ -98,8 +99,8 @@ def evaluate_answerable_queries(
 
         retrieved_chunks, relevant_ids = create_mock_retrieval_results(
             passages,
-            num_relevant=2,
-            num_total=10
+            num_relevant=1,
+            num_total=k
         )
 
         queries.append({
@@ -121,11 +122,12 @@ def evaluate_answerable_queries(
 
 def evaluate_unanswerable_queries(
     data: List[Dict[str, Any]],
+    k: int = 5,
 ) -> Dict[str, Any]:
     """Evaluate retrieval metrics for unanswerable questions."""
-    logger.info(f"Evaluating {len(data)} unanswerable queries...")
+    logger.info(f"Evaluating {len(data)} unanswerable queries (K={k})...")
 
-    dataset_metrics = DatasetMetrics(k=10)
+    dataset_metrics = DatasetMetrics(k=k)
     queries = []
 
     for record in data:
@@ -135,7 +137,7 @@ def evaluate_unanswerable_queries(
         retrieved_chunks, relevant_ids = create_mock_retrieval_results(
             passages,
             num_relevant=0,
-            num_total=10
+            num_total=k
         )
 
         queries.append({
@@ -159,11 +161,12 @@ def save_results(
     answerable_results: Dict[str, Any],
     unanswerable_results: Dict[str, Any],
     output_path: str = "data/evaluation_results.json",
+    k: int = 5,
 ) -> None:
     """Save evaluation results to JSON file."""
     results = {
         "evaluation_config": {
-            "k": 10,
+            "k": k,
             "answerable_queries": answerable_results["num_queries"],
             "unanswerable_queries": unanswerable_results["num_queries"],
         },
@@ -226,10 +229,11 @@ async def main():
     logger.info(f"Loaded {len(answerable_data)} answerable queries")
     logger.info(f"Loaded {len(unanswerable_data)} unanswerable queries")
 
-    answerable_results = evaluate_answerable_queries(answerable_data)
-    unanswerable_results = evaluate_unanswerable_queries(unanswerable_data)
+    k_value = 5
+    answerable_results = evaluate_answerable_queries(answerable_data, k=k_value)
+    unanswerable_results = evaluate_unanswerable_queries(unanswerable_data, k=k_value)
 
-    save_results(answerable_results, unanswerable_results)
+    save_results(answerable_results, unanswerable_results, k=k_value)
     print_results(answerable_results, unanswerable_results)
 
     logger.info("Evaluation complete!")
