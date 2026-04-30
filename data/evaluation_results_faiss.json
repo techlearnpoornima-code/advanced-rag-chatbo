@@ -1,5 +1,5 @@
 {
-  "evaluation_type": "FAISS-based (real retrieval)",
+  "evaluation_type": "FAISS-based (Phase 1.2 index)",
   "evaluation_config": {
     "k": 5,
     "embedding_model": "all-MiniLM-L6-v2",
