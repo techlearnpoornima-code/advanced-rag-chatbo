@@ -103,7 +103,8 @@ class SemanticChunker:
                     'token_count': current_token_count,
                     'contains_answer': self._contains_answer_span(
                         current_chunk_sentences,
-                        passage.get('output', [])
+                        passage.get('output', []),
+                        passage_sentences=sentences
                     ),
                     'start_sentence': current_chunk_sentences[0],
                     'end_sentence': current_chunk_sentences[-1]
@@ -143,7 +144,8 @@ class SemanticChunker:
                 'token_count': current_token_count,
                 'contains_answer': self._contains_answer_span(
                     current_chunk_sentences,
-                    passage.get('output', [])
+                    passage.get('output', []),
+                    passage_sentences=sentences
                 ),
                 'start_sentence': current_chunk_sentences[0],
                 'end_sentence': current_chunk_sentences[-1]
@@ -154,9 +156,16 @@ class SemanticChunker:
     def _contains_answer_span(
         self,
         chunk_sentence_indices: List[int],
-        outputs: List[Dict[str, Any]]
+        outputs: List[Dict[str, Any]],
+        passage_sentences: List[str] = None
     ) -> bool:
-        """Check if chunk contains answer sentences."""
+        """
+        Check if chunk contains answer sentences.
+
+        Handles both string-based and index-based selected_sentences:
+        - String sentences: match text against passage_sentences to find indices
+        - Integer indices: direct set membership check
+        """
         if not outputs:
             return False
 
@@ -164,8 +173,24 @@ class SemanticChunker:
 
         for output in outputs:
             answer_sentences = output.get('selected_sentences', [])
-            if answer_sentences and any(s in chunk_set for s in answer_sentences):
-                return True
+            if not answer_sentences:
+                continue
+
+            # Case 1: selected_sentences are strings (text from passage)
+            if answer_sentences and isinstance(answer_sentences[0], str):
+                if passage_sentences:
+                    answer_indices = set()
+                    for answer_sent in answer_sentences:
+                        for sent_idx, passage_sent in enumerate(passage_sentences):
+                            if answer_sent.strip() == passage_sent.strip():
+                                answer_indices.add(sent_idx)
+                                break
+                    if answer_indices and answer_indices & chunk_set:
+                        return True
+            # Case 2: selected_sentences are integers (indices)
+            else:
+                if any(s in chunk_set for s in answer_sentences):
+                    return True
 
         return False
 

@@ -1,0 +1,44 @@
+{
+  "evaluation_date": "2026-05-01T00:04:51.256686",
+  "status": "COMPLETE",
+  "config": {
+    "max_tokens": 512,
+    "min_tokens": 50,
+    "chunks_file": "data/processed/chunks.jsonl"
+  },
+  "answer_coverage": {
+    "records_with_answer_chunk": 100,
+    "total_answerable_records": 100,
+    "coverage_rate": 1.0,
+    "target": 0.95,
+    "status": "PASS",
+    "records_missing_answer_count": 0
+  },
+  "token_distribution": {
+    "min": 24,
+    "max": 538,
+    "mean": 195.00974858902,
+    "std": 95.35360944215162,
+    "median": 173.0,
+    "q25": 135.0,
+    "q75": 226.0,
+    "total_chunks": 3898,
+    "chunks_exceeding_limit": 1,
+    "max_tokens_config": 512,
+    "status": "FAIL"
+  },
+  "sentence_integrity": {
+    "total_chunks": 3898,
+    "violations": 0,
+    "violation_rate": 0.0,
+    "status": "PASS"
+  },
+  "chunk_distribution": {
+    "total_passages": 3745,
+    "total_chunks": 3898,
+    "min_chunks_per_passage": 1,
+    "max_chunks_per_passage": 22,
+    "mean_chunks_per_passage": 1.0408544726301736,
+    "std_chunks_per_passage": 0.47155376659479864
+  }
+}
