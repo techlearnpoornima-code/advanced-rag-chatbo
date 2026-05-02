@@ -70,7 +70,6 @@ class VectorStoreFaiss:
                 logger.info("Dropping old chunks table (schema migration)")
                 cursor.execute('DROP TABLE IF EXISTS chunks')
                 cursor.execute('DROP INDEX IF EXISTS idx_passage_id')
-                cursor.execute('DROP INDEX IF EXISTS idx_contains_answer')
 
         # Create chunks table
         cursor.execute('''
@@ -81,7 +80,6 @@ class VectorStoreFaiss:
                 passage_title TEXT,
                 chunk_text TEXT,
                 sentence_indices TEXT,
-                contains_answer BOOLEAN,
                 token_count INTEGER,
                 source_file TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -91,9 +89,6 @@ class VectorStoreFaiss:
         # Create index for common queries
         cursor.execute('''
             CREATE INDEX IF NOT EXISTS idx_passage_id ON chunks(passage_id)
-        ''')
-        cursor.execute('''
-            CREATE INDEX IF NOT EXISTS idx_contains_answer ON chunks(contains_answer)
         ''')
 
         conn.commit()
@@ -188,8 +183,8 @@ class VectorStoreFaiss:
             cursor.execute('''
                 INSERT OR REPLACE INTO chunks
                 (faiss_index, chunk_id, passage_id, passage_title, chunk_text,
-                 sentence_indices, contains_answer, token_count, source_file)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 sentence_indices, token_count, source_file)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 faiss_index,
                 metadata.get('chunk_id'),
@@ -197,7 +192,6 @@ class VectorStoreFaiss:
                 metadata.get('passage_title'),
                 chunk_text,
                 sentence_indices,
-                metadata.get('contains_answer', False),
                 metadata.get('token_count', 0),
                 metadata.get('source_file', '')
             ))
@@ -217,7 +211,7 @@ class VectorStoreFaiss:
         Args:
             query: Search query text
             top_k: Number of results to return
-            filters: Metadata filters (e.g., {"contains_answer": True})
+            filters: Metadata filters (e.g., {"passage_title": "Python"})
 
         Returns:
             List of chunk results with metadata
@@ -230,9 +224,9 @@ class VectorStoreFaiss:
             # 2. Search FAISS index
             distances, indices = self.index.search(query_embedding, k=min(top_k * 2, self.chunk_count))
 
-            # 3. Fetch metadata from SQLite
+            # 3. Fetch metadata from SQLite, attach similarity score
             results = []
-            for idx in indices[0]:
+            for dist, idx in zip(distances[0], indices[0]):
                 if idx < 0:  # Invalid index
                     continue
 
@@ -244,9 +238,12 @@ class VectorStoreFaiss:
                 if filters and not self._matches_filters(metadata, filters):
                     continue
 
-                results.append(metadata)
+                # Convert L2 distance → cosine similarity (valid for unit-norm embeddings)
+                similarity = float(max(0.0, 1.0 - (dist ** 2) / 2.0))
+                results.append({**metadata, "score": round(similarity, 4)})
 
-            # Return top_k after filtering
+            # Return top_k after filtering, highest score first
+            results.sort(key=lambda x: x["score"], reverse=True)
             logger.info(f"Retrieved {len(results)} chunks for query: {query[:50]}...")
             return results[:top_k]
 
@@ -344,7 +341,6 @@ class VectorStoreFaiss:
                     'passage_title': row['passage_title'],
                     'chunk_text': row['chunk_text'],
                     'sentence_indices': json.loads(row['sentence_indices']),
-                    'contains_answer': bool(row['contains_answer']),
                     'token_count': row['token_count'],
                     'source_file': row['source_file']
                 }
@@ -357,9 +353,7 @@ class VectorStoreFaiss:
     def _matches_filters(self, metadata: Dict[str, Any], filters: Dict[str, Any]) -> bool:
         """Check if metadata matches filter criteria."""
         for key, value in filters.items():
-            if key == 'contains_answer' and metadata.get(key) != value:
-                return False
-            elif key == 'passage_title' and value not in metadata.get(key, ''):
+            if key == 'passage_title' and value not in metadata.get(key, ''):
                 return False
             elif key == 'passage_id' and metadata.get(key) != value:
                 return False
@@ -378,10 +372,6 @@ class VectorStoreFaiss:
             cursor.execute('SELECT COUNT(*) FROM chunks')
             total_chunks = cursor.fetchone()[0]
 
-            # Chunks with answers
-            cursor.execute('SELECT COUNT(*) FROM chunks WHERE contains_answer = 1')
-            chunks_with_answers = cursor.fetchone()[0]
-
             # Avg token count
             cursor.execute('SELECT AVG(token_count) FROM chunks')
             avg_tokens = cursor.fetchone()[0] or 0
@@ -390,7 +380,6 @@ class VectorStoreFaiss:
 
             return {
                 'total_chunks': total_chunks,
-                'chunks_with_answers': chunks_with_answers,
                 'avg_token_count': int(avg_tokens),
                 'embedding_dim': self.embedding_dim,
                 'embedding_model': 'all-MiniLM-L6-v2',

@@ -35,23 +35,6 @@ class TestSemanticChunker:
             assert 'passage_title' in meta
             assert 'sentence_indices' in meta
             assert 'token_count' in meta
-            assert 'contains_answer' in meta
-
-    def test_answer_detection(self, chunker, sample_answerable_record):
-        """Should detect chunks containing answers."""
-        passages = sample_answerable_record['passages']
-        chunks, metadata = chunker.chunk_passages(passages)
-
-        answer_chunks = [m for m in metadata if m['contains_answer']]
-        assert len(answer_chunks) > 0
-
-    def test_answer_not_in_unanswerable(self, chunker, sample_unanswerable_record):
-        """Unanswerable passages should have no answer chunks."""
-        passages = sample_unanswerable_record['passages']
-        chunks, metadata = chunker.chunk_passages(passages)
-
-        answer_chunks = [m for m in metadata if m['contains_answer']]
-        assert len(answer_chunks) == 0
 
     def test_token_limit_respected(self, chunker, sample_answerable_record):
         """Chunks should not exceed token limit."""
@@ -70,5 +53,4 @@ class TestSemanticChunker:
 
         assert 'total_chunks' in stats
         assert 'total_tokens' in stats
-        assert 'chunks_with_answers' in stats
         assert 'token_stats' in stats

@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     
     # Model Configuration
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
-    LLM_MODEL: str = "claude-sonnet-4-20250514"
+    LLM_MODEL: str = "llama3"
+    LLM_PROVIDER: str = "ollama"
     MAX_TOKENS: int = 4096
     TEMPERATURE: float = 0.7
     

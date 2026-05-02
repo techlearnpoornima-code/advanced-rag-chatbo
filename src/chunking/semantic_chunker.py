@@ -10,7 +10,7 @@ class SemanticChunker:
     Chunk CLAPnq passages using sentence boundaries.
 
     Groups consecutive sentences until token limit reached,
-    preserving semantic boundaries and answer spans.
+    preserving semantic boundaries.
     """
 
     def __init__(
@@ -101,11 +101,6 @@ class SemanticChunker:
                     'passage_title': passage_title,
                     'sentence_indices': current_chunk_sentences.copy(),
                     'token_count': current_token_count,
-                    'contains_answer': self._contains_answer_span(
-                        current_chunk_sentences,
-                        passage.get('output', []),
-                        passage_sentences=sentences
-                    ),
                     'start_sentence': current_chunk_sentences[0],
                     'end_sentence': current_chunk_sentences[-1]
                 })
@@ -142,57 +137,11 @@ class SemanticChunker:
                 'passage_title': passage_title,
                 'sentence_indices': current_chunk_sentences.copy(),
                 'token_count': current_token_count,
-                'contains_answer': self._contains_answer_span(
-                    current_chunk_sentences,
-                    passage.get('output', []),
-                    passage_sentences=sentences
-                ),
                 'start_sentence': current_chunk_sentences[0],
                 'end_sentence': current_chunk_sentences[-1]
             })
 
         return chunks, metadata
-
-    def _contains_answer_span(
-        self,
-        chunk_sentence_indices: List[int],
-        outputs: List[Dict[str, Any]],
-        passage_sentences: List[str] = None
-    ) -> bool:
-        """
-        Check if chunk contains answer sentences.
-
-        Handles both string-based and index-based selected_sentences:
-        - String sentences: match text against passage_sentences to find indices
-        - Integer indices: direct set membership check
-        """
-        if not outputs:
-            return False
-
-        chunk_set = set(chunk_sentence_indices)
-
-        for output in outputs:
-            answer_sentences = output.get('selected_sentences', [])
-            if not answer_sentences:
-                continue
-
-            # Case 1: selected_sentences are strings (text from passage)
-            if answer_sentences and isinstance(answer_sentences[0], str):
-                if passage_sentences:
-                    answer_indices = set()
-                    for answer_sent in answer_sentences:
-                        for sent_idx, passage_sent in enumerate(passage_sentences):
-                            if answer_sent.strip() == passage_sent.strip():
-                                answer_indices.add(sent_idx)
-                                break
-                    if answer_indices and answer_indices & chunk_set:
-                        return True
-            # Case 2: selected_sentences are integers (indices)
-            else:
-                if any(s in chunk_set for s in answer_sentences):
-                    return True
-
-        return False
 
     @staticmethod
     def _count_tokens(text: str) -> int:
@@ -209,13 +158,10 @@ class SemanticChunker:
             return {}
 
         token_counts = [self._count_tokens(c) for c in chunks]
-        answer_chunks = sum(1 for m in metadata if m.get('contains_answer', False))
 
         return {
             'total_chunks': len(chunks),
             'total_tokens': sum(token_counts),
-            'chunks_with_answers': answer_chunks,
-            'answer_chunk_ratio': answer_chunks / len(chunks) if chunks else 0,
             'token_stats': {
                 'min': min(token_counts) if token_counts else 0,
                 'max': max(token_counts) if token_counts else 0,

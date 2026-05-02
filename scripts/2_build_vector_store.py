@@ -133,7 +133,6 @@ async def main(args):
 
     logger.info("Vector Store Statistics:")
     logger.info("  Total chunks: {}", stats.get('total_chunks'))
-    logger.info("  Chunks with answers: {}", stats.get('chunks_with_answers'))
     logger.info("  Avg tokens per chunk: {}", stats.get('avg_token_count'))
     logger.info("  Embedding dimension: {}", stats.get('embedding_dim'))
     logger.info("  Embedding model: {}", stats.get('embedding_model'))

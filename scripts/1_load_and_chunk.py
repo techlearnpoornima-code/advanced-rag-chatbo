@@ -78,13 +78,10 @@ async def main(args):
     logger.info("")
     logger.info("STEP 3: Extracting passages...")
     passages = []
-    record_idx_map = []  # Track which record each passage came from
 
-    for record_idx, record in enumerate(all_records):
+    for record in all_records:
         for passage in record.get('passages', []):
-            passage['output'] = record.get('output', [])
             passages.append(passage)
-            record_idx_map.append(record_idx)
 
     logger.info("Total passages to chunk: {}", len(passages))
 
@@ -106,9 +103,8 @@ async def main(args):
     chunk_stats = chunker.get_statistics(chunks, chunk_metadata)
     logger.info("Chunking Statistics:")
     logger.info("  Total chunks: {}", chunk_stats.get('total_chunks'))
-    logger.info("  Chunks with answers: {}", chunk_stats.get('chunks_with_answers'))
-    logger.info("  Answer chunk ratio: {:.1%}", chunk_stats.get('answer_chunk_ratio', 0))
-    logger.info("  Token stats (min/max/avg): {}/{}/{}",
+    logger.info("  Total tokens: {}", chunk_stats.get('total_tokens'))
+    logger.info("  Token stats (min/max/avg): {}/{}/{:.1f}",
                 chunk_stats['token_stats']['min'],
                 chunk_stats['token_stats']['max'],
                 chunk_stats['token_stats']['avg'])
