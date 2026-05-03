@@ -6,7 +6,7 @@ Handles document storage with dense embeddings (FAISS) + metadata (SQLite)
 import json
 import sqlite3
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import TYPE_CHECKING, List, Dict, Any, Optional
 
 import numpy as np
 import faiss
@@ -14,6 +14,9 @@ from sentence_transformers import SentenceTransformer
 from loguru import logger
 
 from app.config import settings
+
+if TYPE_CHECKING:
+    from src.retrieval.reranker import CrossEncoderReranker
 
 
 class VectorStoreFaiss:
@@ -202,27 +205,39 @@ class VectorStoreFaiss:
     async def search(
         self,
         query: str,
-        top_k: int = 10,
-        filters: Optional[Dict[str, Any]] = None
+        top_k: int = 6,
+        filters: Optional[Dict[str, Any]] = None,
+        reranker: Optional["CrossEncoderReranker"] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Search for relevant chunks.
+        Search for relevant chunks, with optional cross-encoder reranking.
+
+        When reranker is provided, fetches top_k*4 candidates from FAISS first
+        so the cross-encoder has enough candidates to rerank from, then returns
+        the top_k most relevant according to the cross-encoder score.
 
         Args:
-            query: Search query text
-            top_k: Number of results to return
-            filters: Metadata filters (e.g., {"passage_title": "Python"})
+            query:    Search query text
+            top_k:    Number of results to return
+            filters:  Metadata filters (e.g., {"passage_title": "Python"})
+            reranker: Optional CrossEncoderReranker. When set, FAISS scores are
+                      replaced by cross-encoder scores in the returned chunks.
 
         Returns:
-            List of chunk results with metadata
+            List of chunk dicts with metadata and score field.
+            If reranker used, also includes faiss_score and rerank_score fields.
         """
         try:
+            # Fetch more candidates when reranking so the cross-encoder
+            # has a larger pool to work with.
+            fetch_k = min(top_k * 4 if reranker else top_k * 2, self.chunk_count)
+
             # 1. Embed query
             query_embedding = self.embedding_model.encode(query).astype('float32')
             query_embedding = np.array([query_embedding])
 
             # 2. Search FAISS index
-            distances, indices = self.index.search(query_embedding, k=min(top_k * 2, self.chunk_count))
+            distances, indices = self.index.search(query_embedding, k=fetch_k)
 
             # 3. Fetch metadata from SQLite, attach similarity score
             results = []
@@ -234,7 +249,6 @@ class VectorStoreFaiss:
                 if metadata is None:
                     continue
 
-                # Apply filters
                 if filters and not self._matches_filters(metadata, filters):
                     continue
 
@@ -242,10 +256,18 @@ class VectorStoreFaiss:
                 similarity = float(max(0.0, 1.0 - (dist ** 2) / 2.0))
                 results.append({**metadata, "score": round(similarity, 4)})
 
-            # Return top_k after filtering, highest score first
             results.sort(key=lambda x: x["score"], reverse=True)
-            logger.info(f"Retrieved {len(results)} chunks for query: {query[:50]}...")
-            return results[:top_k]
+            logger.info(
+                f"FAISS retrieved {len(results)} chunks for query: {query[:50]}..."
+            )
+
+            # 4. Optional cross-encoder reranking
+            if reranker is not None and results:
+                results = reranker.rerank(query, results)
+            else:
+                results = results[:top_k]
+
+            return results
 
         except Exception as e:
             logger.error(f"Search error: {e}")

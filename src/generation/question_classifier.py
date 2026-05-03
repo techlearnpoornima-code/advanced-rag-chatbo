@@ -32,6 +32,9 @@ _SYNTHESIS_PREFIXES = (
     'how did', 'how was', 'how were', 'how does', 'how do',
     'why did', 'why was', 'why were', 'why is', 'why are',
     'explain', 'describe', 'what role did', 'what role does',
+    # function/purpose questions need multi-passage synthesis
+    'what does', 'what do', 'what is the function', 'what is the purpose',
+    'what is the role', 'what are the functions', 'what are the effects',
     'what was the impact', 'what is the impact',
     'what caused', 'what led to', 'what contributed to',
     'what were the causes', 'what were the effects',

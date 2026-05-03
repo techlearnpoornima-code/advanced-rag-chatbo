@@ -32,17 +32,24 @@ from src.generation.rag_generator import RAGGenerator
 from src.generation.providers import get_provider
 
 
-DEMO_QUERIES = [
-    # SYNTHESIS — how the US ended WWII in the Pacific
-    "How did the United States use nuclear weapons to end World War II in the Pacific?",
-    # MULTI_HOP — French and Indian War → Treaty of Fontainebleau → Louisiana cession to Spain
-    "How did France's defeat in the French and Indian War that led to the Treaty of Fontainebleau cause it to cede Louisiana to Spain?",
-    # FACTOID — Jungle Book voice actor
-    "Who sang The Bare Necessities in the 1967 Disney film The Jungle Book?",
-    # TEMPORAL — Camp David Accords
-    "When were the Camp David Accords signed?",
-    # LOCATION — US state geography
-    "Where is Oklahoma located in the United States?",
+# DEMO_QUERIES = [
+#     # SYNTHESIS — how the US ended WWII in the Pacific
+#     "How did the United States use nuclear weapons to end World War II in the Pacific?",
+#     # MULTI_HOP — French and Indian War → Treaty of Fontainebleau → Louisiana cession to Spain
+#     "How did France's defeat in the French and Indian War that led to the Treaty of Fontainebleau cause it to cede Louisiana to Spain?",
+#     # FACTOID — Jungle Book voice actor
+#     "Who sang The Bare Necessities in the 1967 Disney film The Jungle Book?",
+#     # TEMPORAL — Camp David Accords
+#     "When were the Camp David Accords signed?",
+#     # LOCATION — US state geography
+#     "Where is Oklahoma located in the United States?",
+# ]
+
+DEMO_QUERIES = ["administers the oath of office to the president",
+"what does the grana do in a plant cell",
+"nba players to win back to back finals mvp",
+"what event caused the united states to declare war and enter world war ii",
+"what do the lyrics for american pie mean"
 ]
 
 
@@ -51,14 +58,15 @@ async def run_query(
     store: VectorStoreFaiss,
     generator: RAGGenerator,
     top_k: int,
+    reranker=None,
 ) -> None:
     print(f"\n{'='*70}")
     print(f"QUERY: {query}")
     print("="*70)
 
-    # Retrieve
+    # Retrieve (+ optional cross-encoder rerank)
     t0 = time.perf_counter()
-    chunks = await store.search(query, top_k=top_k)
+    chunks = await store.search(query, top_k=top_k, reranker=reranker)
     retrieval_ms = (time.perf_counter() - t0) * 1000
 
     # Print all retrieved chunks
@@ -115,9 +123,15 @@ async def main(args: argparse.Namespace) -> None:
         embed_fn=store.embed_text if args.verify_grounding else None,
     )
 
+    reranker = None
+    if args.rerank:
+        from src.retrieval.reranker import CrossEncoderReranker
+        reranker = CrossEncoderReranker(model_name=args.rerank_model, top_n=args.top_k)
+        logger.info(f"Reranker  : {args.rerank_model} | top_n={args.top_k}")
+
     queries = args.queries if args.queries else DEMO_QUERIES
     for query in queries:
-        await run_query(query, store, generator, top_k=args.top_k)
+        await run_query(query, store, generator, top_k=args.top_k, reranker=reranker)
 
     print(f"\n{'='*70}")
     print("Done.")
@@ -141,6 +155,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Run grounding verification (hybrid lexical+semantic) after generation")
     p.add_argument("--grounding-threshold", type=float, default=0.4,
                    help="Minimum grounding score for is_grounded=True (default: 0.4)")
+    p.add_argument("--rerank", action="store_true",
+                   help="Enable cross-encoder reranking after FAISS retrieval")
+    p.add_argument("--rerank-model", default="cross-encoder/ms-marco-MiniLM-L-6-v2",
+                   help="Cross-encoder model for reranking (default: ms-marco-MiniLM-L-6-v2)")
     p.add_argument("--db-path", default="./data/vectordb/chunks.db")
     p.add_argument("--index-path", default="./data/vectordb/chunks.faiss")
     p.add_argument("queries", nargs="*", help="Questions to answer (default: demo set)")
